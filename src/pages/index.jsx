@@ -17,7 +17,7 @@ import Widget from "components/widgets/widget";
 import Revalidate from "components/toggles/revalidate";
 import createLogger from "utils/logger";
 import useWindowFocus from "utils/hooks/window-focus";
-import { getSettings } from "utils/config/config";
+import { getSettings, readSettingsRaw } from "utils/config/config";
 import { ColorContext } from "utils/contexts/color";
 import { ThemeContext } from "utils/contexts/theme";
 import { SettingsContext } from "utils/contexts/settings";
@@ -26,6 +26,7 @@ import { bookmarksResponse, servicesResponse, widgetsResponse } from "utils/conf
 import ErrorBoundary from "components/errorboundry";
 import themes from "utils/styles/themes";
 import QuickLaunch from "components/quicklaunch";
+import SettingsMenu from "components/toggles/settings";
 
 const ThemeToggle = dynamic(() => import("components/toggles/theme"), {
   ssr: false,
@@ -46,11 +47,10 @@ export async function getStaticProps() {
   try {
     logger = createLogger("index");
     const { providers, ...settings } = getSettings();
-
+    const rawSettings = readSettingsRaw();
     const services = await servicesResponse();
     const bookmarks = await bookmarksResponse();
     const widgets = await widgetsResponse();
-
     return {
       props: {
         initialSettings: settings,
@@ -60,6 +60,7 @@ export async function getStaticProps() {
           "/api/widgets": widgets,
           "/api/hash": false,
         },
+        rawTextSettings: rawSettings,
         ...(await serverSideTranslations(settings.language ?? "en")),
       },
     };
@@ -76,13 +77,14 @@ export async function getStaticProps() {
           "/api/widgets": [],
           "/api/hash": false,
         },
+        rawTextSettings: "",
         ...(await serverSideTranslations("en")),
       },
     };
   }
 }
 
-function Index({ initialSettings, fallback }) {
+function Index({ initialSettings, fallback, rawTextSettings }) {
   const windowFocused = useWindowFocus();
   const [stale, setStale] = useState(false);
   const { data: errorsData } = useSWR("/api/validate");
@@ -152,7 +154,7 @@ function Index({ initialSettings, fallback }) {
   return (
     <SWRConfig value={{ fallback, fetcher: (resource, init) => fetch(resource, init).then((res) => res.json()) }}>
       <ErrorBoundary>
-        <Home initialSettings={initialSettings} />
+        <Home initialSettings={initialSettings} rawTextSettings={rawTextSettings} />
       </ErrorBoundary>
     </SWRConfig>
   );
@@ -166,14 +168,13 @@ const headerStyles = {
   boxedWidgets: "m-5 mb-0 sm:m-9 sm:mb-0 sm:mt-1",
 };
 
-function Home({ initialSettings }) {
+function Home({ initialSettings, rawTextSettings }) {
   const { i18n } = useTranslation();
   const { theme, setTheme } = useContext(ThemeContext);
   const { color, setColor } = useContext(ColorContext);
   const { settings, setSettings } = useContext(SettingsContext);
   const { activeTab, setActiveTab } = useContext(TabContext);
   const { asPath } = useRouter();
-
   useEffect(() => {
     setSettings(initialSettings);
   }, [initialSettings, setSettings]);
@@ -441,6 +442,7 @@ function Home({ initialSettings }) {
           <div id="style" className="flex w-full justify-end">
             {!settings?.color && <ColorToggle />}
             <Revalidate />
+            <SettingsMenu Settings={rawTextSettings} />
             {!settings.theme && <ThemeToggle />}
           </div>
 
@@ -453,7 +455,7 @@ function Home({ initialSettings }) {
   );
 }
 
-export default function Wrapper({ initialSettings, fallback }) {
+export default function Wrapper({ initialSettings, fallback, rawTextSettings }) {
   const wrappedStyle = {};
   let backgroundBlur = false;
   let backgroundSaturate = false;
@@ -504,7 +506,7 @@ export default function Wrapper({ initialSettings, fallback }) {
             backgroundBrightness && `backdrop-brightness-${initialSettings.background.brightness}`,
           )}
         >
-          <Index initialSettings={initialSettings} fallback={fallback} />
+          <Index initialSettings={initialSettings} fallback={fallback} rawTextSettings={rawTextSettings} />
         </div>
       </div>
     </div>

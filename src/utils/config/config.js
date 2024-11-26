@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { join } from "path";
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from "fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
 import cache from "memory-cache";
 import yaml from "js-yaml";
@@ -91,4 +91,36 @@ export function getSettings() {
     }
   }
   return initialSettings;
+}
+
+export function readSettingsRaw() {
+  checkAndCopyConfig("settings.yaml");
+
+  const settingsYaml = join(CONF_DIR, "settings.yaml");
+  const rawFileContents = readFileSync(settingsYaml, "utf8");
+  return rawFileContents;
+}
+
+export function writeFile(data, path) {
+  const allowedPaths = [
+    "settings.yaml",
+    "services.yaml",
+    "docker.yaml",
+    "kubernetes.yaml",
+    "bookmarks.yaml",
+    "widgets.yaml",
+    "custom.js",
+    "custom.css",
+  ];
+  if (!allowedPaths.includes(path)) {
+    return false;
+  }
+  const settingsYaml = join(CONF_DIR, path);
+  const rawFileContents = data;
+
+  writeFileSync(settingsYaml, rawFileContents, "utf8", (err) => {
+    if (err) throw err;
+  });
+
+  return readFileSync(settingsYaml, "utf8");
 }
